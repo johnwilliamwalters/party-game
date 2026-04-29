@@ -1,0 +1,210 @@
+"use client";
+/* eslint-disable @next/next/no-img-element */
+
+import { useCallback, useEffect, useMemo, useState } from "react";
+import QRCode from "qrcode";
+
+import { useGameRealtime } from "@/hooks/use-game-realtime";
+import { fetchGameSnapshot } from "@/lib/game-api";
+import type { GameSnapshot } from "@/types/game";
+
+export default function TvPage() {
+  const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
+  const [joinUrl, setJoinUrl] = useState("/play");
+  const [joinQrDataUrl, setJoinQrDataUrl] = useState("");
+
+  const refresh = useCallback(async () => {
+    const data = await fetchGameSnapshot();
+    setSnapshot(data);
+  }, []);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void refresh();
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [refresh]);
+
+  useGameRealtime(() => {
+    void refresh();
+  });
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setJoinUrl(`${window.location.origin}/play`);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useEffect(() => {
+    if (!joinUrl) return;
+    const timer = setTimeout(() => {
+      void QRCode.toDataURL(joinUrl, {
+        width: 320,
+        margin: 1,
+        color: { dark: "#0f172a", light: "#ffffff" },
+      }).then(setJoinQrDataUrl);
+    }, 0);
+    return () => clearTimeout(timer);
+  }, [joinUrl]);
+
+  const roundCounts = useMemo(() => {
+    const counts = new Map<string, number>();
+    for (const vote of snapshot?.roundVotes ?? []) {
+      counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + 1);
+    }
+    return counts;
+  }, [snapshot?.roundVotes]);
+
+  const overallCounts = useMemo(() => {
+    const roundWeights = new Map<string, number>(
+      (snapshot?.rounds ?? []).map((round) => [round.id, round.score_modifier ?? 1]),
+    );
+    const counts = new Map<string, number>();
+    for (const vote of snapshot?.allVotes ?? []) {
+      const weight = roundWeights.get(vote.round_id) ?? 1;
+      counts.set(vote.option_id, (counts.get(vote.option_id) ?? 0) + weight);
+    }
+    return counts;
+  }, [snapshot?.allVotes, snapshot?.rounds]);
+
+  const rankedThisRound = useMemo(
+    () =>
+      [...(snapshot?.options ?? [])].sort(
+        (a, b) => (roundCounts.get(b.id) ?? 0) - (roundCounts.get(a.id) ?? 0),
+      ),
+    [snapshot?.options, roundCounts],
+  );
+
+  const rankedOverall = useMemo(
+    () =>
+      [...(snapshot?.options ?? [])].sort(
+        (a, b) => (overallCounts.get(b.id) ?? 0) - (overallCounts.get(a.id) ?? 0),
+      ),
+    [snapshot?.options, overallCounts],
+  );
+
+  /** option id → player names who voted for it this round (for TV scoreboard). */
+  const voterNamesByOption = useMemo(() => {
+    const nameByPlayerId = new Map((snapshot?.players ?? []).map((p) => [p.id, p.name]));
+    const map = new Map<string, string[]>();
+    for (const vote of snapshot?.roundVotes ?? []) {
+      const name = nameByPlayerId.get(vote.player_id) ?? "Player";
+      const list = map.get(vote.option_id) ?? [];
+      list.push(name);
+      map.set(vote.option_id, list);
+    }
+    for (const names of map.values()) {
+      names.sort((a, b) => a.localeCompare(b));
+    }
+    return map;
+  }, [snapshot?.roundVotes, snapshot?.players]);
+
+  const showingScoreboard = snapshot?.state.phase === "scoreboard";
+
+  return (
+    <main className="retro-bg min-h-screen p-6 text-slate-900 md:p-10">
+      <aside className="retro-panel mb-6 flex items-center gap-4 bg-[#ffe55a] p-3">
+        {joinQrDataUrl ? (
+          <img src={joinQrDataUrl} alt="QR code to join the game" className="h-28 w-28 border-2 border-slate-900 bg-white p-1" />
+        ) : (
+          <div className="h-28 w-28 animate-pulse border-2 border-slate-900 bg-white/40" />
+        )}
+        <div>
+          <p className="text-sm font-black uppercase tracking-widest text-slate-900">Join on phone</p>
+          <p className="mt-1 text-lg font-black">{joinUrl || "/play"}</p>
+          <p className="text-xs text-slate-700">Scan to open player voting screen.</p>
+        </div>
+      </aside>
+      {!snapshot?.currentRound ? (
+        <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
+          <div>
+            <p className="text-2xl font-black uppercase tracking-widest text-slate-800">
+              Waiting
+            </p>
+            <h1 className="retro-title mt-4 text-5xl font-black text-cyan-200 md:text-7xl">
+              Game will start soon...
+            </h1>
+          </div>
+        </div>
+      ) : showingScoreboard ? (
+        <div className="space-y-6">
+          <div className="retro-panel bg-[#f2b5da] p-6">
+            <h1 className="retro-title text-3xl font-black text-cyan-200 md:text-5xl">
+              Scoreboard
+            </h1>
+            <p className="mt-2 text-xl font-black md:text-3xl">{snapshot.currentRound.question}</p>
+            <p className="text-sm font-black uppercase tracking-wider text-slate-800">
+              This question score effect: {snapshot.currentRound.score_modifier === -1 ? "-1" : "+1"}
+            </p>
+          </div>
+
+          <div className="grid gap-6 xl:grid-cols-2">
+            <section className="retro-panel bg-white/90 p-5">
+              <h2 className="text-2xl font-black uppercase tracking-wider text-slate-900">This Question</h2>
+              <div className="mt-4 space-y-3">
+                {rankedThisRound.map((option) => {
+                  const voters = voterNamesByOption.get(option.id) ?? [];
+                  return (
+                    <div
+                      key={option.id}
+                      className="flex items-start justify-between gap-3 border-2 border-slate-900 bg-[#8be6f2] p-3"
+                    >
+                      <div className="flex min-w-0 flex-1 items-start gap-3">
+                        <img
+                          src={option.image_url}
+                          alt={option.name}
+                          className="h-14 w-14 shrink-0 border-2 border-slate-900 object-cover"
+                        />
+                        <div className="min-w-0">
+                          <span className="text-2xl font-black">{option.name}</span>
+                          {voters.length > 0 ? (
+                            <p className="mt-1 text-base font-bold leading-snug text-slate-800">
+                              {voters.join(" · ")}
+                            </p>
+                          ) : null}
+                        </div>
+                      </div>
+                      <span className="shrink-0 text-3xl font-black text-fuchsia-700">
+                        {roundCounts.get(option.id) ?? 0}
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+
+            <section className="retro-panel bg-white/90 p-5">
+              <h2 className="text-2xl font-black uppercase tracking-wider text-slate-900">Overall Leaderboard</h2>
+              <div className="mt-4 space-y-3">
+                {rankedOverall.map((option) => (
+                  <div key={option.id} className="flex items-center justify-between border-2 border-slate-900 bg-[#ffe55a] p-3">
+                    <div className="flex items-center gap-3">
+                      <img src={option.image_url} alt={option.name} className="h-14 w-14 border-2 border-slate-900 object-cover" />
+                      <span className="text-2xl font-black">{option.name}</span>
+                    </div>
+                    <span className="text-3xl font-black text-indigo-700">{overallCounts.get(option.id) ?? 0}</span>
+                  </div>
+                ))}
+              </div>
+            </section>
+          </div>
+        </div>
+      ) : (
+        <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
+          <div>
+            <p className="text-2xl font-black uppercase tracking-[0.3em] text-slate-800">
+              Now Voting
+            </p>
+            <h1 className="retro-title mt-4 text-5xl font-black leading-tight text-cyan-200 md:text-8xl">
+              {snapshot.currentRound.question}
+            </h1>
+            <p className="mt-8 text-xl font-black text-slate-800 md:text-3xl">
+              Cast your vote on your phone
+            </p>
+          </div>
+        </div>
+      )}
+    </main>
+  );
+}

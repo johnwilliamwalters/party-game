@@ -1,14 +1,16 @@
 @import "tailwindcss";
 
 :root {
-  --background: #ffffff;
-  --foreground: #171717;
+  --background: #f8fafc;
+  --foreground: #0f172a;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
+  --font-display: var(--font-bowlby);
+  --font-retro: var(--font-archivo);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -22,5 +24,33 @@
 body {
   background: var(--background);
   color: var(--foreground);
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), system-ui, sans-serif;
+}
+
+/* 80s airbrush-style blue: deep royal → electric → sky */
+.retro-bg {
+  background: linear-gradient(
+    165deg,
+    #0f1c4d 0%,
+    #1e3a8a 18%,
+    #1d4ed8 42%,
+    #0ea5e9 68%,
+    #38bdf8 88%,
+    #7dd3fc 100%
+  );
+}
+
+.retro-panel {
+  border: 4px solid #0f172a;
+  border-radius: 0 !important;
+  box-shadow: 8px 8px 0 #0f172a;
+}
+
+.retro-title {
+  font-family: var(--font-retro), var(--font-geist-sans), system-ui, sans-serif;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  -webkit-text-stroke: 3px #0f172a;
+  paint-order: stroke fill;
 }
