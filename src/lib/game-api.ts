@@ -1,6 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { supabase } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client";
 import type {
   DbGameState,
   DbOption,
@@ -20,7 +20,7 @@ const defaultState: DbGameState = {
 };
 
 export async function ensureGameState(): Promise<PostgrestError | null> {
-  const { error } = await supabase.from("game_state").upsert({ id: 1 }, { onConflict: "id" });
+  const { error } = await getSupabase().from("game_state").upsert({ id: 1 }, { onConflict: "id" });
   return error ?? null;
 }
 
@@ -65,7 +65,7 @@ function emptyGameSnapshot(): GameSnapshot {
 }
 
 export async function setGamePhase(phase: GamePhase) {
-  await supabase.from("game_state").upsert(
+  await getSupabase().from("game_state").upsert(
     {
       id: 1,
       phase,
@@ -76,7 +76,7 @@ export async function setGamePhase(phase: GamePhase) {
 }
 
 export async function setCurrentRound(roundId: string, phase: GamePhase) {
-  await supabase.from("game_state").upsert(
+  await getSupabase().from("game_state").upsert(
     {
       id: 1,
       current_round_id: roundId,
@@ -88,7 +88,7 @@ export async function setCurrentRound(roundId: string, phase: GamePhase) {
 }
 
 export async function clearCurrentRound() {
-  await supabase.from("game_state").upsert(
+  await getSupabase().from("game_state").upsert(
     {
       id: 1,
       current_round_id: null,
@@ -121,12 +121,12 @@ async function fetchGameSnapshotUncached(): Promise<GameSnapshot> {
     console.warn("[party-game] game_state upsert:", ensureErr.message);
   }
 
-  const stateRes = await supabase.from("game_state").select("*").eq("id", 1).maybeSingle();
-  const optionsRes = await supabase.from("options").select("*").order("created_at", { ascending: true });
-  const playersRes = await supabase.from("players").select("*").order("created_at", { ascending: true });
-  const roundsRes = await supabase.from("rounds").select("*").order("created_at", { ascending: true });
-  const questionBankRes = await supabase.from("question_bank").select("*").order("position", { ascending: true });
-  const votesRes = await supabase.from("votes").select("*").order("created_at", { ascending: true });
+  const stateRes = await getSupabase().from("game_state").select("*").eq("id", 1).maybeSingle();
+  const optionsRes = await getSupabase().from("options").select("*").order("created_at", { ascending: true });
+  const playersRes = await getSupabase().from("players").select("*").order("created_at", { ascending: true });
+  const roundsRes = await getSupabase().from("rounds").select("*").order("created_at", { ascending: true });
+  const questionBankRes = await getSupabase().from("question_bank").select("*").order("position", { ascending: true });
+  const votesRes = await getSupabase().from("votes").select("*").order("created_at", { ascending: true });
 
   const safeState = pickData(stateRes, "game_state") ?? defaultState;
   const options = (pickData(optionsRes, "options") ?? []) as DbOption[];
@@ -137,7 +137,7 @@ async function fetchGameSnapshotUncached(): Promise<GameSnapshot> {
 
   let currentRound: DbRound | null = null;
   if (safeState.current_round_id) {
-    const roundRes = await supabase
+    const roundRes = await getSupabase()
       .from("rounds")
       .select("*")
       .eq("id", safeState.current_round_id)
@@ -147,7 +147,7 @@ async function fetchGameSnapshotUncached(): Promise<GameSnapshot> {
 
   let roundVotes: DbVote[] = [];
   if (currentRound) {
-    const rvRes = await supabase
+    const rvRes = await getSupabase()
       .from("votes")
       .select("*")
       .eq("round_id", currentRound.id)
@@ -197,17 +197,17 @@ export async function replaceOptions(
   const existing = sanitized.filter((option) => isPersistedOptionId(option.id));
   const newOnes = sanitized.filter((option) => !isPersistedOptionId(option.id));
 
-  const { data: existingVotes } = await supabase.from("votes").select("id").limit(1);
+  const { data: existingVotes } = await getSupabase().from("votes").select("id").limit(1);
   const hasVotes = (existingVotes?.length ?? 0) > 0;
 
   if (!hasVotes) {
-    const { error: delErr } = await supabase
+    const { error: delErr } = await getSupabase()
       .from("options")
       .delete()
       .neq("id", "00000000-0000-0000-0000-000000000000");
     if (delErr) console.warn("[party-game] options delete:", delErr.message);
     if (sanitized.length > 0) {
-      const { error: insErr } = await supabase.from("options").insert(
+      const { error: insErr } = await getSupabase().from("options").insert(
         sanitized.map((option) => ({ name: option.name, image_url: option.image_url })),
       );
       if (insErr) console.warn("[party-game] options insert:", insErr.message);
@@ -216,11 +216,11 @@ export async function replaceOptions(
   }
 
   if (existing.length > 0) {
-    const { error } = await supabase.from("options").upsert(existing, { onConflict: "id" });
+    const { error } = await getSupabase().from("options").upsert(existing, { onConflict: "id" });
     if (error) console.warn("[party-game] options upsert:", error.message);
   }
   if (newOnes.length > 0) {
-    const { error } = await supabase.from("options").insert(
+    const { error } = await getSupabase().from("options").insert(
       newOnes.map((option) => ({ name: option.name, image_url: option.image_url })),
     );
     if (error) console.warn("[party-game] options insert (partial):", error.message);
@@ -243,14 +243,14 @@ export async function saveQuestionBank(
   const newOnes = sanitized.filter((question) => !isPersistedOptionId(question.id));
 
   if (existing.length > 0) {
-    const { error } = await supabase.from("question_bank").upsert(existing, { onConflict: "id" });
+    const { error } = await getSupabase().from("question_bank").upsert(existing, { onConflict: "id" });
     if (error) {
       throw new Error(`Could not save question queue (upsert): ${error.message}`);
     }
   }
 
   if (newOnes.length > 0) {
-    const { error } = await supabase.from("question_bank").insert(
+    const { error } = await getSupabase().from("question_bank").insert(
       newOnes.map((question) => ({
         prompt: question.prompt,
         score_modifier: question.score_modifier,
@@ -270,7 +270,7 @@ export async function createRound(
   scoreModifier: 1 | -1,
   questionBankId: string | null,
 ): Promise<DbRound> {
-  const { data, error } = await supabase
+  const { data, error } = await getSupabase()
     .from("rounds")
     .insert({
       question,
@@ -289,9 +289,9 @@ export async function createRound(
 
 export async function resetGame() {
   await clearCurrentRound();
-  await supabase.from("votes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("rounds").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("players").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("options").delete().neq("id", "00000000-0000-0000-0000-000000000000");
-  await supabase.from("question_bank").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await getSupabase().from("votes").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await getSupabase().from("rounds").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await getSupabase().from("players").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await getSupabase().from("options").delete().neq("id", "00000000-0000-0000-0000-000000000000");
+  await getSupabase().from("question_bank").delete().neq("id", "00000000-0000-0000-0000-000000000000");
 }

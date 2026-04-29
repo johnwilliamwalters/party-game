@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
-import { supabase } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client";
 import type { DbPlayer, GameSnapshot } from "@/types/game";
 
 const STORAGE_KEY = "party-game-player-session";
@@ -70,7 +70,7 @@ export default function PlayPage() {
     localStorage.setItem(STORAGE_KEY, nextSessionId);
     setSessionId(nextSessionId);
 
-    const { data, error } = await supabase
+    const { data, error } = await getSupabase()
       .from("players")
       .upsert({ session_id: nextSessionId, name: cleanName }, { onConflict: "session_id" })
       .select("*")
@@ -91,7 +91,7 @@ export default function PlayPage() {
     setVoteError(null);
     setVoting(true);
     try {
-      const { error } = await supabase.from("votes").insert({
+      const { error } = await getSupabase().from("votes").insert({
         round_id: snapshot.currentRound.id,
         player_id: player.id,
         option_id: optionId,

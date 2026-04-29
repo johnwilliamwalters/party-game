@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { supabase } from "@/lib/supabase/client";
+import { getSupabase } from "@/lib/supabase/client";
 
 const watchedTables = [
   "game_state",
@@ -33,7 +33,7 @@ export function useGameRealtime(onChange: () => void) {
       }, DEBOUNCE_MS);
     };
 
-    const channel = supabase.channel(`game-${Math.random().toString(36).slice(2)}`);
+    const channel = getSupabase().channel(`game-${Math.random().toString(36).slice(2)}`);
 
     for (const table of watchedTables) {
       channel.on(
@@ -47,7 +47,7 @@ export function useGameRealtime(onChange: () => void) {
 
     return () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
-      void supabase.removeChannel(channel);
+      void getSupabase().removeChannel(channel);
     };
   }, []);
 }
