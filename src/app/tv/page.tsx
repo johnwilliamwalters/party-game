@@ -113,6 +113,11 @@ export default function TvPage() {
 
   const phase = snapshot?.state.phase;
   const showingScoreboard = phase === "scoreboard";
+  const showJoinBanner = (snapshot?.rounds.length ?? 0) === 0;
+  const connectedPlayerNames = useMemo(
+    () => [...(snapshot?.players ?? [])].map((p) => p.name).filter(Boolean).sort((a, b) => a.localeCompare(b)),
+    [snapshot?.players],
+  );
 
   const finalResultsBlock =
     finalResultsVisible ? (
@@ -169,19 +174,21 @@ export default function TvPage() {
     ) : null;
 
   return (
-    <main className="retro-bg min-h-screen p-6 text-slate-900 md:p-10">
-      <aside className="retro-panel mb-6 flex items-center gap-4 bg-[#ffe55a] p-3">
-        {joinQrDataUrl ? (
-          <img src={joinQrDataUrl} alt="QR code to join the game" className="h-28 w-28 border-2 border-slate-900 bg-white p-1" />
-        ) : (
-          <div className="h-28 w-28 animate-pulse border-2 border-slate-900 bg-white/40" />
-        )}
-        <div>
-          <p className="text-sm font-black uppercase tracking-widest text-slate-900">Join on phone</p>
-          <p className="mt-1 text-lg font-black">{joinUrl || "/play"}</p>
-          <p className="text-xs text-slate-700">Scan to open player voting screen.</p>
-        </div>
-      </aside>
+    <main className="retro-bg min-h-screen p-6 pb-28 text-slate-900 md:p-10 md:pb-32">
+      {showJoinBanner ? (
+        <aside className="retro-panel mb-6 flex items-center gap-4 bg-[#ffe55a] p-3">
+          {joinQrDataUrl ? (
+            <img src={joinQrDataUrl} alt="QR code to join the game" className="h-28 w-28 border-2 border-slate-900 bg-white p-1" />
+          ) : (
+            <div className="h-28 w-28 animate-pulse border-2 border-slate-900 bg-white/40" />
+          )}
+          <div>
+            <p className="text-sm font-black uppercase tracking-widest text-slate-900">Join on phone</p>
+            <p className="mt-1 text-lg font-black">{joinUrl || "/play"}</p>
+            <p className="text-xs text-slate-700">Scan to open player voting screen.</p>
+          </div>
+        </aside>
+      ) : null}
       {!snapshot?.currentRound && !finalResultsVisible ? (
         <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
           <div>
@@ -329,6 +336,28 @@ export default function TvPage() {
           </div>
         </div>
       )}
+
+      <footer className="fixed inset-x-0 bottom-0 border-t-2 border-slate-900 bg-[#ffe55a]/95 px-4 py-3 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-7xl items-center gap-3">
+          <p className="shrink-0 text-xs font-black uppercase tracking-widest text-slate-900">
+            Players ({connectedPlayerNames.length})
+          </p>
+          <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
+            {connectedPlayerNames.length > 0 ? (
+              connectedPlayerNames.map((name) => (
+                <span
+                  key={name}
+                  className="shrink-0 rounded-full border-2 border-slate-900 bg-white px-3 py-1 text-sm font-black text-slate-900"
+                >
+                  {name}
+                </span>
+              ))
+            ) : (
+              <span className="text-sm font-semibold text-slate-700">No players joined yet</span>
+            )}
+          </div>
+        </div>
+      </footer>
     </main>
   );
 }
