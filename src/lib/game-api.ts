@@ -65,7 +65,7 @@ function emptyGameSnapshot(): GameSnapshot {
 }
 
 export async function setGamePhase(phase: GamePhase) {
-  await getSupabase().from("game_state").upsert(
+  const { error } = await getSupabase().from("game_state").upsert(
     {
       id: 1,
       phase,
@@ -73,10 +73,13 @@ export async function setGamePhase(phase: GamePhase) {
     },
     { onConflict: "id" },
   );
+  if (error) {
+    throw new Error(`Could not set game phase: ${error.message}`);
+  }
 }
 
 export async function setCurrentRound(roundId: string, phase: GamePhase) {
-  await getSupabase().from("game_state").upsert(
+  const { error } = await getSupabase().from("game_state").upsert(
     {
       id: 1,
       current_round_id: roundId,
@@ -85,10 +88,13 @@ export async function setCurrentRound(roundId: string, phase: GamePhase) {
     },
     { onConflict: "id" },
   );
+  if (error) {
+    throw new Error(`Could not set current round: ${error.message}`);
+  }
 }
 
 export async function clearCurrentRound() {
-  await getSupabase().from("game_state").upsert(
+  const { error } = await getSupabase().from("game_state").upsert(
     {
       id: 1,
       current_round_id: null,
@@ -97,6 +103,25 @@ export async function clearCurrentRound() {
     },
     { onConflict: "id" },
   );
+  if (error) {
+    throw new Error(`Could not clear current round: ${error.message}`);
+  }
+}
+
+/** Enters final-results mode without changing DB phase constraints. */
+export async function showFinalResults() {
+  const { error } = await getSupabase().from("game_state").upsert(
+    {
+      id: 1,
+      current_round_id: null,
+      phase: "scoreboard",
+      updated_at: new Date().toISOString(),
+    },
+    { onConflict: "id" },
+  );
+  if (error) {
+    throw new Error(`Could not show final results: ${error.message}`);
+  }
 }
 
 function pickData<T>(

@@ -8,6 +8,7 @@ import {
   replaceOptions,
   resetGame,
   saveQuestionBank,
+  showFinalResults,
   setCurrentRound,
   setGamePhase,
 } from "@/lib/game-api";
@@ -340,7 +341,7 @@ export default function AdminPage() {
             <button
               type="button"
               disabled={busy !== null}
-              onClick={() => runAction("final", async () => setGamePhase("final"))}
+              onClick={() => runAction("final", showFinalResults)}
               className="rounded-xl bg-amber-600 px-4 py-2 font-bold text-white disabled:opacity-50"
             >
               Show Final Results

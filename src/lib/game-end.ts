@@ -15,5 +15,5 @@ export function isEndGameComplete(snapshot: GameSnapshot | null): boolean {
 
 export function isFinalResultsVisible(snapshot: GameSnapshot | null): boolean {
   if (!snapshot) return false;
-  return snapshot.state.phase === "final";
+  return snapshot.state.phase === "scoreboard" && snapshot.currentRound === null;
 }
