@@ -15,5 +15,7 @@ export function isEndGameComplete(snapshot: GameSnapshot | null): boolean {
 
 export function isFinalResultsVisible(snapshot: GameSnapshot | null): boolean {
   if (!snapshot) return false;
-  return snapshot.state.phase === "scoreboard" && snapshot.currentRound === null;
+  // Final mode is represented by "no active round" after gameplay has started.
+  // This stays compatible with DB phase constraints and avoids getting stuck on waiting UI.
+  return snapshot.currentRound === null && snapshot.rounds.length > 0;
 }
