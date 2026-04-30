@@ -189,7 +189,7 @@ export default function TvPage() {
           </div>
         </aside>
       ) : null}
-      {!snapshot?.currentRound && !finalResultsVisible ? (
+      {!snapshot?.currentRound && !finalResultsVisible && phase === "waiting" ? (
         <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
           <div>
             <p className="text-2xl font-black uppercase tracking-widest text-slate-800">
