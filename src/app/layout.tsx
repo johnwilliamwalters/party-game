@@ -1,15 +1,9 @@
 import type { Metadata } from "next";
-import { Archivo, Bowlby_One, Geist, Geist_Mono } from "next/font/google";
+import { BBH_Hegarty, Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 
-const archivo = Archivo({
-  variable: "--font-archivo",
-  subsets: ["latin"],
-  weight: "900",
-});
-
-const bowlby = Bowlby_One({
-  variable: "--font-bowlby",
+const bbhHegarty = BBH_Hegarty({
+  variable: "--font-display-face",
   subsets: ["latin"],
   weight: "400",
 });
@@ -37,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={`${archivo.variable} ${bowlby.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
+      className={`${bbhHegarty.variable} ${geistSans.variable} ${geistMono.variable} h-full antialiased`}
     >
       <body className="min-h-full flex flex-col">{children}</body>
     </html>

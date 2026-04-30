@@ -2,7 +2,7 @@
 
 import { useEffect, useRef } from "react";
 
-import { getSupabase } from "@/lib/supabase/client";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 
 const watchedTables = [
   "game_state",
@@ -25,6 +25,8 @@ export function useGameRealtime(onChange: () => void) {
   }, [onChange]);
 
   useEffect(() => {
+    if (!isSupabaseConfigured()) return;
+
     const scheduleRefresh = () => {
       if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
       debounceTimerRef.current = setTimeout(() => {

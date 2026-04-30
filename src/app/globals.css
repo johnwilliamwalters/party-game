@@ -9,8 +9,7 @@
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --font-sans: var(--font-geist-sans);
-  --font-display: var(--font-bowlby);
-  --font-retro: var(--font-archivo);
+  --font-display: var(--font-display-face);
   --font-mono: var(--font-geist-mono);
 }
 
@@ -47,10 +46,8 @@ body {
 }
 
 .retro-title {
-  font-family: var(--font-retro), var(--font-geist-sans), system-ui, sans-serif;
+  font-family: var(--font-display), var(--font-geist-sans), system-ui, sans-serif;
   font-weight: 900;
   text-transform: uppercase;
-  letter-spacing: 0.08em;
-  -webkit-text-stroke: 3px #0f172a;
-  paint-order: stroke fill;
+  letter-spacing: -0.01em;
 }

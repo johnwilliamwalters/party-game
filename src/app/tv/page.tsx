@@ -122,7 +122,7 @@ export default function TvPage() {
             <p className="text-2xl font-black uppercase tracking-widest text-slate-800">
               Waiting
             </p>
-            <h1 className="retro-title mt-4 text-5xl font-black text-cyan-200 md:text-7xl">
+            <h1 className="retro-title mt-4 text-5xl font-black text-black md:text-7xl">
               Game will start soon...
             </h1>
           </div>
@@ -130,7 +130,7 @@ export default function TvPage() {
       ) : showingScoreboard ? (
         <div className="space-y-6">
           <div className="retro-panel bg-[#f2b5da] p-6">
-            <h1 className="retro-title text-3xl font-black text-cyan-200 md:text-5xl">
+            <h1 className="retro-title text-3xl font-black text-black md:text-5xl">
               Scoreboard
             </h1>
             <p className="mt-2 text-xl font-black md:text-3xl">{snapshot.currentRound.question}</p>
@@ -196,7 +196,7 @@ export default function TvPage() {
             <p className="text-2xl font-black uppercase tracking-[0.3em] text-slate-800">
               Now Voting
             </p>
-            <h1 className="retro-title mt-4 text-5xl font-black leading-tight text-cyan-200 md:text-8xl">
+            <h1 className="retro-title mt-4 text-5xl font-black leading-tight text-black md:text-8xl">
               {snapshot.currentRound.question}
             </h1>
             <p className="mt-8 text-xl font-black text-slate-800 md:text-3xl">

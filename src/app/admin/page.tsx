@@ -12,6 +12,7 @@ import {
   setGamePhase,
 } from "@/lib/game-api";
 import { useGameRealtime } from "@/hooks/use-game-realtime";
+import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { GameSnapshot } from "@/types/game";
 
 type EditableOption = { id?: string; name: string; image_url: string };
@@ -173,6 +174,24 @@ export default function AdminPage() {
   return (
     <main className="min-h-screen bg-slate-100 p-4 md:p-8">
       <div className="mx-auto grid w-full max-w-7xl gap-6 lg:grid-cols-[1.1fr_0.9fr]">
+        {!isSupabaseConfigured() ? (
+          <div className="lg:col-span-2 rounded-2xl border-2 border-amber-500 bg-amber-50 p-4 text-amber-950 shadow-lg">
+            <p className="text-lg font-bold">Supabase environment variables are missing in this deployment.</p>
+            <p className="mt-2 text-sm leading-relaxed">
+              In Vercel: <strong>Settings → Environment Variables</strong>, add{" "}
+              <code className="rounded bg-amber-100/80 px-1.5 py-0.5 font-mono text-xs">
+                NEXT_PUBLIC_SUPABASE_URL
+              </code>{" "}
+              and{" "}
+              <code className="rounded bg-amber-100/80 px-1.5 py-0.5 font-mono text-xs">
+                NEXT_PUBLIC_SUPABASE_ANON_KEY
+              </code>{" "}
+              (copy from Supabase → <strong>Project Settings → API</strong>). Then trigger a new{" "}
+              <strong>Deploy</strong> — <code className="font-mono text-xs">NEXT_PUBLIC_*</code> values are
+              baked in at build time.
+            </p>
+          </div>
+        ) : null}
         <section className="rounded-3xl bg-white p-6 shadow-xl">
           <h1 className="font-display text-3xl font-black text-indigo-700">Admin Control Center</h1>
           <p className="mt-1 text-sm text-slate-500">

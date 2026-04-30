@@ -1,6 +1,6 @@
 import type { PostgrestError } from "@supabase/supabase-js";
 
-import { getSupabase } from "@/lib/supabase/client";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import type {
   DbGameState,
   DbOption,
@@ -112,6 +112,13 @@ function pickData<T>(
 let snapshotInFlight: Promise<GameSnapshot> | null = null;
 
 async function fetchGameSnapshotUncached(): Promise<GameSnapshot> {
+  if (!isSupabaseConfigured()) {
+    console.warn(
+      "[party-game] NEXT_PUBLIC_SUPABASE_URL / NEXT_PUBLIC_SUPABASE_ANON_KEY missing in this deployment.",
+    );
+    return emptyGameSnapshot();
+  }
+
   const ensureErr = await ensureGameState();
   if (ensureErr && isLikelyNetworkFailure(ensureErr)) {
     logSupabaseUnreachableOnce();

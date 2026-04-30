@@ -5,7 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
-import { getSupabase } from "@/lib/supabase/client";
+import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { DbPlayer, GameSnapshot } from "@/types/game";
 
 const STORAGE_KEY = "party-game-player-session";
@@ -66,6 +66,12 @@ export default function PlayPage() {
     if (!cleanName) return;
 
     setJoinError(null);
+    if (!isSupabaseConfigured()) {
+      setJoinError(
+        "Supabase is not configured on this deployment. Add NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY in Vercel, then redeploy.",
+      );
+      return;
+    }
     const nextSessionId = localStorage.getItem(STORAGE_KEY) ?? createSessionId();
     localStorage.setItem(STORAGE_KEY, nextSessionId);
     setSessionId(nextSessionId);
@@ -87,6 +93,12 @@ export default function PlayPage() {
 
   async function vote(optionId: string) {
     if (!player || !snapshot?.currentRound || alreadyVoted || voting) return;
+    if (!isSupabaseConfigured()) {
+      setVoteError(
+        "Supabase is not configured on this deployment. Add env vars in Vercel and redeploy.",
+      );
+      return;
+    }
 
     setVoteError(null);
     setVoting(true);
@@ -126,7 +138,7 @@ export default function PlayPage() {
           <div className="mb-4 border-2 border-slate-900 bg-[#ffe55a] px-3 py-2 text-center text-sm font-black uppercase tracking-widest">
             Join Prom Night
           </div>
-          <h1 className="retro-title text-center text-4xl font-black text-cyan-200">Play</h1>
+          <h1 className="retro-title text-center text-4xl font-black text-black">Play</h1>
           <p className="mt-2 text-center text-sm font-semibold text-slate-700">
             Enter your name to start voting.
           </p>
