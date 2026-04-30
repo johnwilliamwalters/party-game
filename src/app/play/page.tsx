@@ -5,6 +5,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
+import { isFinalResultsVisible } from "@/lib/game-end";
 import { getSupabase, isSupabaseConfigured } from "@/lib/supabase/client";
 import type { DbPlayer, GameSnapshot } from "@/types/game";
 
@@ -131,6 +132,37 @@ export default function PlayPage() {
     }
   }
 
+  const readyToVote = Boolean(
+    snapshot?.state.phase === "question" &&
+      snapshot?.currentRound &&
+      (snapshot?.options.length ?? 0) > 0,
+  );
+
+  const finalResultsVisible = useMemo(() => isFinalResultsVisible(snapshot), [snapshot]);
+
+  const dreamDate = useMemo(() => {
+    if (!player || !snapshot) return null;
+    const roundWeights = new Map(
+      snapshot.rounds.map((round) => [round.id, round.score_modifier ?? 1]),
+    );
+    const personalScores = new Map<string, number>();
+    for (const vote of snapshot.allVotes) {
+      if (vote.player_id !== player.id) continue;
+      const weight = roundWeights.get(vote.round_id) ?? 1;
+      personalScores.set(vote.option_id, (personalScores.get(vote.option_id) ?? 0) + weight);
+    }
+    if (personalScores.size === 0) return null;
+
+    const rankedPersonal = [...snapshot.options].sort((a, b) => {
+      const bScore = personalScores.get(b.id) ?? 0;
+      const aScore = personalScores.get(a.id) ?? 0;
+      return bScore - aScore;
+    });
+    const top = rankedPersonal[0];
+    if (!top) return null;
+    return { option: top, score: personalScores.get(top.id) ?? 0 };
+  }, [player, snapshot]);
+
   if (!player) {
     return (
       <main className="retro-bg flex min-h-screen items-center justify-center p-4">
@@ -165,12 +197,6 @@ export default function PlayPage() {
     );
   }
 
-  const readyToVote = Boolean(
-    snapshot?.state.phase === "question" &&
-      snapshot?.currentRound &&
-      (snapshot?.options.length ?? 0) > 0,
-  );
-
   return (
     <main className="retro-bg min-h-screen p-4">
       <div className="mx-auto max-w-md">
@@ -189,7 +215,28 @@ export default function PlayPage() {
           </p>
         ) : null}
 
-        {!readyToVote || alreadyVoted ? (
+        {finalResultsVisible ? (
+          <div className="retro-panel mt-4 bg-[#f2b5da] p-6 text-center text-slate-900">
+            <p className="font-display text-3xl font-black">Your Dream Date</p>
+            {dreamDate ? (
+              <div className="mt-4 border-2 border-slate-900 bg-white p-4">
+                <img
+                  src={dreamDate.option.image_url}
+                  alt={dreamDate.option.name}
+                  className="mx-auto h-36 w-36 border-2 border-slate-900 object-cover"
+                />
+                <p className="mt-3 text-3xl font-black">{dreamDate.option.name}</p>
+                <p className="text-base font-bold text-indigo-700">
+                  Your score for them: {dreamDate.score}
+                </p>
+              </div>
+            ) : (
+              <p className="mt-2 text-lg font-bold">
+                Vote through the rounds to reveal your dream date.
+              </p>
+            )}
+          </div>
+        ) : !readyToVote || alreadyVoted ? (
           <div className="retro-panel mt-4 bg-[#4b3af0] p-6 text-center text-white">
             <p className="font-display text-3xl font-black">Waiting for others...</p>
             <p className="mt-1 text-xl text-white/80">

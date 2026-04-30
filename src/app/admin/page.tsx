@@ -15,58 +15,60 @@ import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { isSupabaseConfigured } from "@/lib/supabase/client";
 import type { GameSnapshot } from "@/types/game";
 
-type EditableOption = { id?: string; name: string; image_url: string };
 type EditableQuestion = { id?: string; prompt: string; score_modifier: 1 | -1 };
-
-const randomId = () => `new-${Math.random().toString(36).slice(2)}`;
 
 /** Voting needs at least two distinct choices. */
 const MIN_PLAYER_OPTIONS = 2;
 
+const FIXED_QUESTION_QUEUE: Array<{ prompt: string; score_modifier: 1 | -1 }> = [
+  { prompt: "WHO IS GOING TO WRITE SONGS ABOUT YOU... BAD SONGS?", score_modifier: -1 },
+  {
+    prompt: "WHO WOULD TAKE YOU ON THE BEST DATE... AND ACTUALLY TEXT THE NEXT DAY?",
+    score_modifier: 1,
+  },
+  { prompt: "WHO'S THE BIGGEST MANSPLAINER?", score_modifier: -1 },
+  { prompt: "WHO IS THE BEST KISSER?", score_modifier: 1 },
+  { prompt: "WHO WOULD SAY \"I LOVE YOU\" WAY TOO SOON?", score_modifier: -1 },
+  { prompt: "WHO WILL AGE GRACEFULLY?", score_modifier: 1 },
+  { prompt: "WHO WILL YOUR FRIENDS HATE... BUT YOU WILL STILL BE INTO THEM?", score_modifier: -1 },
+  { prompt: "WHO IS THE BEST COOK?", score_modifier: 1 },
+  { prompt: "WHO WOULD SPEND LONGER GETTING READY THAN YOU?", score_modifier: -1 },
+  { prompt: "WHO'S A GIVER?", score_modifier: 1 },
+  { prompt: "WHO HAS HOLES IN THEIR BOXERS?", score_modifier: -1 },
+  { prompt: "WHO WILL BUY YOU FLOWERS FOR NO REASON?", score_modifier: 1 },
+  { prompt: "WHO WILL LEAVE YOU WANTING MORE... AND NEVER GIVE IT?", score_modifier: -1 },
+  { prompt: "WHO WON'T SEND UNSOLICITED DICK PICS?", score_modifier: 1 },
+  { prompt: "WHO HAS AN ONLY FANS ACCOUNT?", score_modifier: -1 },
+  { prompt: "WHO IS MARRIAGE MATERIAL?", score_modifier: 1 },
+];
+
+function mergeFixedQueueWithDb(questionsFromDb: GameSnapshot["questionBank"]): EditableQuestion[] {
+  const byPrompt = new Map(
+    questionsFromDb.map((question) => [question.prompt.trim().toLowerCase(), question]),
+  );
+  return FIXED_QUESTION_QUEUE.map((fixed) => {
+    const persisted = byPrompt.get(fixed.prompt.trim().toLowerCase());
+    return {
+      id: persisted?.id,
+      prompt: fixed.prompt,
+      score_modifier: fixed.score_modifier,
+    };
+  });
+}
+
 export default function AdminPage() {
   const [snapshot, setSnapshot] = useState<GameSnapshot | null>(null);
-  const [options, setOptions] = useState<EditableOption[]>([]);
-  const [questions, setQuestions] = useState<EditableQuestion[]>([]);
+  const [fileOptions, setFileOptions] = useState<Array<{ name: string; image_url: string }>>([]);
+  const [questions, setQuestions] = useState<EditableQuestion[]>(() => mergeFixedQueueWithDb([]));
   const [busy, setBusy] = useState<string | null>(null);
   const [actionError, setActionError] = useState<string | null>(null);
   const autoScoredRoundRef = useRef<string | null>(null);
 
   const refresh = useCallback(
-    async (syncSetupFromServer = false) => {
+    async () => {
       const data = await fetchGameSnapshot();
       setSnapshot(data);
-      setOptions((prev) => {
-        if (syncSetupFromServer) {
-          return data.options.map((option) => ({
-            id: option.id,
-            name: option.name,
-            image_url: option.image_url,
-          }));
-        }
-        return prev.length > 0
-          ? prev
-          : data.options.map((option) => ({
-              id: option.id,
-              name: option.name,
-              image_url: option.image_url,
-            }));
-      });
-      setQuestions((prev) => {
-        if (syncSetupFromServer) {
-          return data.questionBank.map((question) => ({
-            id: question.id,
-            prompt: question.prompt,
-            score_modifier: question.score_modifier === -1 ? -1 : 1,
-          }));
-        }
-        return prev.length > 0
-          ? prev
-          : data.questionBank.map((question) => ({
-              id: question.id,
-              prompt: question.prompt,
-              score_modifier: question.score_modifier === -1 ? -1 : 1,
-            }));
-      });
+      setQuestions(mergeFixedQueueWithDb(data.questionBank));
     },
     [],
   );
@@ -77,6 +79,21 @@ export default function AdminPage() {
     }, 0);
     return () => clearTimeout(timer);
   }, [refresh]);
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      void fetch("/api/date-options")
+        .then((res) => (res.ok ? res.json() : Promise.reject(new Error("Could not load options."))))
+        .then((payload: { options?: Array<{ name: string; image_url: string }> }) => {
+          setFileOptions(payload.options ?? []);
+        })
+        .catch((error) => {
+          console.warn("[party-game] date option files:", error);
+          setFileOptions([]);
+        });
+    }, 0);
+    return () => clearTimeout(timer);
+  }, []);
 
   useGameRealtime(() => {
     void refresh();
@@ -104,13 +121,19 @@ export default function AdminPage() {
     return () => clearTimeout(timer);
   }, [allPlayersVoted, snapshot?.currentRound]);
 
-  const usableOptions = useMemo(
-    () =>
-      options
-        .map((item) => ({ id: item.id, name: item.name.trim(), image_url: item.image_url.trim() }))
-        .filter((item) => item.name && item.image_url),
-    [options],
-  );
+  const usableOptions = useMemo(() => {
+    const persistedByImageUrl = new Map(
+      (snapshot?.options ?? []).map((option) => [option.image_url.trim(), option]),
+    );
+    return fileOptions
+      .map((item) => {
+        const cleanName = item.name.trim();
+        const cleanUrl = item.image_url.trim();
+        const persisted = persistedByImageUrl.get(cleanUrl);
+        return { id: persisted?.id, name: cleanName, image_url: cleanUrl };
+      })
+      .filter((item) => item.name && item.image_url);
+  }, [fileOptions, snapshot?.options]);
 
   const usableQuestions = useMemo(
     () =>
@@ -142,30 +165,25 @@ export default function AdminPage() {
     const parts: string[] = [];
     if (usableOptions.length < MIN_PLAYER_OPTIONS) {
       parts.push(
-        `Add ${MIN_PLAYER_OPTIONS - usableOptions.length} more player row(s) — each needs both Name and Image URL (${usableOptions.length}/${MIN_PLAYER_OPTIONS} ready).`,
+        `Add ${MIN_PLAYER_OPTIONS - usableOptions.length} more image file(s) in public/date-options (need at least ${MIN_PLAYER_OPTIONS}; have ${usableOptions.length}).`,
       );
     }
     if (usableQuestions.length < 1) {
-      parts.push("Add at least one prompt under Question Queue.");
+      parts.push("The built-in question queue is empty after sync.");
     }
     return parts.length > 0 ? parts.join(" ") : null;
   }, [busy, usableOptions.length, usableQuestions.length]);
 
-  async function runAction(
-    name: string,
-    action: () => Promise<void>,
-    /** After Save Setup / Push Next, reload option + queue rows from DB so real UUIDs replace local `new-*` placeholders. */
-    syncSetupFromServerAfter = false,
-  ) {
+  async function runAction(name: string, action: () => Promise<void>) {
     setBusy(name);
     setActionError(null);
     try {
       await action();
-      await refresh(syncSetupFromServerAfter);
+      await refresh();
     } catch (error) {
       const message = error instanceof Error ? error.message : "Something went wrong";
       setActionError(message);
-      await refresh(syncSetupFromServerAfter);
+      await refresh();
     } finally {
       setBusy(null);
     }
@@ -206,184 +224,77 @@ export default function AdminPage() {
             </div>
           ) : null}
 
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-700">Question Queue</h2>
-              <button
-                type="button"
-                onClick={() =>
-                  setQuestions((prev) => [...prev, { id: randomId(), prompt: "", score_modifier: 1 }])
-                }
-                className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white hover:bg-indigo-700"
-              >
-                + Add Question
-              </button>
-            </div>
-            <div className="space-y-3">
+          <details className="mt-6 group rounded-2xl border border-slate-200 bg-slate-50/80 open:bg-slate-50">
+            <summary className="cursor-pointer list-none rounded-2xl px-4 py-3 font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex w-full items-center justify-between gap-2">
+                <span>Question queue ({FIXED_QUESTION_QUEUE.length} fixed)</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 group-open:hidden">
+                  Show
+                </span>
+                <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 group-open:inline">
+                  Hide
+                </span>
+              </span>
+            </summary>
+            <div className="space-y-3 border-t border-slate-200 p-4 pt-2">
               {questions.map((question, index) => (
                 <div
                   key={question.id ?? `${question.prompt}-${index}`}
-                  className="grid gap-2 rounded-2xl bg-slate-50 p-3 md:grid-cols-[1fr_auto_auto]"
+                  className="grid gap-2 rounded-2xl bg-white p-3 md:grid-cols-[1fr_auto]"
                 >
-                  <input
-                    value={question.prompt}
-                    onChange={(event) =>
-                      setQuestions((prev) =>
-                        prev.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, prompt: event.target.value } : item,
-                        ),
-                      )
-                    }
-                    placeholder="Who is most likely to win a dance battle?"
-                    className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring focus:ring-indigo-300"
-                  />
-                  <select
-                    value={question.score_modifier}
-                    onChange={(event) =>
-                      setQuestions((prev) =>
-                        prev.map((item, itemIndex) =>
-                          itemIndex === index
-                            ? {
-                                ...item,
-                                score_modifier: event.target.value === "-1" ? -1 : 1,
-                              }
-                            : item,
-                        ),
-                      )
-                    }
-                    className="rounded-xl border border-slate-200 px-3 py-2 font-bold outline-none focus:ring focus:ring-indigo-300"
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-900">
+                    {question.prompt}
+                  </p>
+                  <span
+                    className={`rounded-xl px-3 py-2 text-center text-sm font-black ${
+                      question.score_modifier === -1
+                        ? "bg-rose-100 text-rose-800"
+                        : "bg-emerald-100 text-emerald-800"
+                    }`}
                   >
-                    <option value={1}>+1 leaderboard</option>
-                    <option value={-1}>-1 leaderboard</option>
-                  </select>
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setQuestions((prev) => prev.filter((_, itemIndex) => itemIndex !== index))
-                    }
-                    className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-200"
-                  >
-                    Remove
-                  </button>
+                    {question.score_modifier === -1 ? "-1" : "+1"}
+                  </span>
                 </div>
               ))}
             </div>
-          </div>
+          </details>
 
-          <div className="mt-6">
-            <div className="mb-2 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-700">Player Options</h2>
-              <button
-                type="button"
-                onClick={() =>
-                  setOptions((prev) => [...prev, { id: randomId(), name: "", image_url: "" }])
-                }
-                className="rounded-xl bg-indigo-600 px-3 py-2 text-sm font-bold text-white hover:bg-indigo-700"
-              >
-                + Add Option
-              </button>
-            </div>
-            <div className="space-y-3">
-              {options.map((option, index) => (
-                <div key={option.id ?? `${option.name}-${index}`} className="grid gap-2 rounded-2xl bg-slate-50 p-3 md:grid-cols-[1fr_2fr_auto]">
-                  <input
-                    value={option.name}
-                    onChange={(event) =>
-                      setOptions((prev) =>
-                        prev.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, name: event.target.value } : item,
-                        ),
-                      )
-                    }
-                    placeholder="Name"
-                    className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring focus:ring-indigo-300"
-                  />
-                  <input
-                    value={option.image_url}
-                    onChange={(event) =>
-                      setOptions((prev) =>
-                        prev.map((item, itemIndex) =>
-                          itemIndex === index ? { ...item, image_url: event.target.value } : item,
-                        ),
-                      )
-                    }
-                    placeholder="Image URL"
-                    className="rounded-xl border border-slate-200 px-3 py-2 outline-none focus:ring focus:ring-indigo-300"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setOptions((prev) => prev.filter((_, itemIndex) => itemIndex !== index))}
-                    className="rounded-xl bg-rose-100 px-3 py-2 text-sm font-bold text-rose-700 hover:bg-rose-200"
-                  >
-                    Remove
-                  </button>
+          <details className="mt-4 group rounded-2xl border border-slate-200 bg-slate-50/80 open:bg-slate-50">
+            <summary className="cursor-pointer list-none rounded-2xl px-4 py-3 font-semibold text-slate-800 marker:content-none [&::-webkit-details-marker]:hidden">
+              <span className="inline-flex w-full items-center justify-between gap-2">
+                <span>Player options from files ({usableOptions.length})</span>
+                <span className="text-xs font-semibold uppercase tracking-wide text-slate-500 group-open:hidden">
+                  Show
+                </span>
+                <span className="hidden text-xs font-semibold uppercase tracking-wide text-slate-500 group-open:inline">
+                  Hide
+                </span>
+              </span>
+            </summary>
+            <div className="space-y-3 border-t border-slate-200 p-4 pt-2">
+              {usableOptions.map((option) => (
+                <div
+                  key={option.image_url}
+                  className="grid gap-2 rounded-2xl bg-white p-3 md:grid-cols-[1fr_2fr]"
+                >
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 font-semibold text-slate-900">
+                    {option.name}
+                  </p>
+                  <p className="rounded-xl border border-slate-200 bg-slate-50 px-3 py-2 text-sm text-slate-700">
+                    {option.image_url}
+                  </p>
                 </div>
               ))}
             </div>
-          </div>
-
-          <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
-            <p className="font-semibold text-slate-900">Why is &quot;Push Next&quot; greyed out?</p>
-            <p className="mt-1">
-              The button stays disabled until you have at least{" "}
-              <strong>{MIN_PLAYER_OPTIONS} player options</strong> (every row must have both Name and Image URL) and{" "}
-              <strong>at least 1 question</strong> in the queue.
-            </p>
-            <p className="mt-2">
-              Current counts:{" "}
-              <strong>{usableOptions.length}</strong> complete option row(s)
-              {usableOptions.length < MIN_PLAYER_OPTIONS ? ` (need ${MIN_PLAYER_OPTIONS})` : ""},{" "}
-              <strong>{usableQuestions.length}</strong> question(s).
-            </p>
-            {pushNextBlockedHint ? (
-              <p className="mt-2 font-semibold text-amber-800">{pushNextBlockedHint}</p>
-            ) : busy === null ? (
-              <p className="mt-2 font-semibold text-emerald-700">Requirements met — you can push.</p>
-            ) : null}
-          </div>
+          </details>
 
           <div className="mt-6 flex flex-wrap gap-3">
             <button
               type="button"
-              disabled={busy !== null}
-              onClick={() =>
-                runAction(
-                  "save-setup",
-                  async () => {
-                    await replaceOptions(usableOptions);
-                    await saveQuestionBank(
-                      usableQuestions.map((question, idx) => ({
-                        ...question,
-                        position: idx + 1,
-                      })),
-                    );
-                  },
-                  true,
-                )
-              }
-              className="rounded-xl bg-slate-900 px-4 py-2 font-bold text-white disabled:opacity-50"
-            >
-              Save Setup
-            </button>
-            <button
-              type="button"
-              disabled={busy !== null}
-              onClick={() => runAction("start", async () => setGamePhase("waiting"))}
-              className="rounded-xl bg-emerald-600 px-4 py-2 font-bold text-white disabled:opacity-50"
-            >
-              Start Game
-            </button>
-            <button
-              type="button"
               disabled={pushNextDisabled}
-              title={
-                pushNextBlockedHint ??
-                "Save options + question queue to the database, then activate the next unused question."
-              }
+              title={pushNextBlockedHint ?? "Sync options and questions, then start the next unused question."}
               onClick={() =>
-                runAction(
-                  "next",
-                  async () => {
+                runAction("next", async () => {
                   await replaceOptions(usableOptions);
                   await saveQuestionBank(
                     usableQuestions.map((question, idx) => ({
@@ -394,18 +305,16 @@ export default function AdminPage() {
                   const latest = await fetchGameSnapshot();
                   if (latest.questionBank.length === 0) {
                     throw new Error(
-                      "No questions found in the database queue. Add prompts under Question Queue, ensure Supabase has the question_bank table, then Save Setup or push again.",
+                      "No questions found in the database queue. Ensure Supabase has the question_bank table and try Next Question again.",
                     );
                   }
                   const used = new Set(
-                    latest.rounds
-                      .map((round) => round.question_bank_id)
-                      .filter(Boolean) as string[],
+                    latest.rounds.map((round) => round.question_bank_id).filter(Boolean) as string[],
                   );
                   const next = latest.questionBank.find((question) => !used.has(question.id));
                   if (!next) {
                     throw new Error(
-                      "Every question in your queue has already been pushed. Add more prompts under Question Queue (then Save Setup), or use Reset Everything for a full wipe — note that also clears the saved question list.",
+                      "Every question in the queue has already been used. Use Reset Everything for a full wipe (this also clears the saved question list in the database).",
                     );
                   }
                   const round = await createRound(
@@ -414,13 +323,11 @@ export default function AdminPage() {
                     next.id,
                   );
                   await setCurrentRound(round.id, "question");
-                  },
-                  true,
-                )
+                })
               }
               className="rounded-xl bg-indigo-600 px-4 py-2 font-bold text-white disabled:opacity-50"
             >
-              Push Next Queued Question
+              Next Question
             </button>
             <button
               type="button"
@@ -429,6 +336,14 @@ export default function AdminPage() {
               className="rounded-xl bg-fuchsia-600 px-4 py-2 font-bold text-white disabled:opacity-50"
             >
               Show Scoreboard
+            </button>
+            <button
+              type="button"
+              disabled={busy !== null}
+              onClick={() => runAction("final", async () => setGamePhase("final"))}
+              className="rounded-xl bg-amber-600 px-4 py-2 font-bold text-white disabled:opacity-50"
+            >
+              Show Final Results
             </button>
             <button
               type="button"

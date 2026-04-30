@@ -1,4 +1,4 @@
-export type GamePhase = "waiting" | "question" | "scoreboard";
+export type GamePhase = "waiting" | "question" | "scoreboard" | "final";
 
 export type DbGameState = {
   id: number;

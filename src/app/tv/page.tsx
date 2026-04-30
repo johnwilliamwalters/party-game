@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
+import { isFinalResultsVisible } from "@/lib/game-end";
 import type { GameSnapshot } from "@/types/game";
 
 export default function TvPage() {
@@ -75,6 +76,8 @@ export default function TvPage() {
       ),
     [snapshot?.options, roundCounts],
   );
+  const roundTopThree = rankedThisRound.slice(0, 3);
+  const roundCompact = rankedThisRound.slice(3);
 
   const rankedOverall = useMemo(
     () =>
@@ -83,6 +86,14 @@ export default function TvPage() {
       ),
     [snapshot?.options, overallCounts],
   );
+
+  const overallTopThree = rankedOverall.slice(0, 3);
+  const overallCompact = rankedOverall.slice(3);
+
+  const finalResultsVisible = useMemo(() => isFinalResultsVisible(snapshot), [snapshot]);
+
+  const mostDatable = rankedOverall[0] ?? null;
+  const leastDatable = rankedOverall.length > 0 ? rankedOverall[rankedOverall.length - 1] : null;
 
   /** option id → player names who voted for it this round (for TV scoreboard). */
   const voterNamesByOption = useMemo(() => {
@@ -100,7 +111,62 @@ export default function TvPage() {
     return map;
   }, [snapshot?.roundVotes, snapshot?.players]);
 
-  const showingScoreboard = snapshot?.state.phase === "scoreboard";
+  const phase = snapshot?.state.phase;
+  const showingScoreboard = phase === "scoreboard";
+
+  const finalResultsBlock =
+    finalResultsVisible ? (
+      <div className="space-y-6">
+        <div className="retro-panel bg-[#f2b5da] p-6 text-center">
+          <h2 className="retro-title text-4xl font-black text-black md:text-6xl">Final Results</h2>
+          <p className="mt-2 text-lg font-bold text-slate-800 md:text-2xl">Every dating question is complete</p>
+        </div>
+
+        <div className="grid gap-6 xl:grid-cols-2">
+          <section className="retro-panel bg-[#ffe55a] p-5">
+            <h3 className="text-2xl font-black uppercase tracking-wider text-slate-900">Most Datable</h3>
+            {mostDatable ? (
+              <div className="mt-4 border-2 border-slate-900 bg-white p-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={mostDatable.image_url}
+                    alt={mostDatable.name}
+                    className="h-24 w-24 border-2 border-slate-900 object-cover"
+                  />
+                  <div>
+                    <p className="text-3xl font-black">{mostDatable.name}</p>
+                    <p className="text-lg font-bold text-indigo-700">Score: {overallCounts.get(mostDatable.id) ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-base font-bold text-slate-700">No votes yet.</p>
+            )}
+          </section>
+
+          <section className="retro-panel bg-[#8be6f2] p-5">
+            <h3 className="text-2xl font-black uppercase tracking-wider text-slate-900">Least Datable</h3>
+            {leastDatable ? (
+              <div className="mt-4 border-2 border-slate-900 bg-white p-4">
+                <div className="flex items-center gap-4">
+                  <img
+                    src={leastDatable.image_url}
+                    alt={leastDatable.name}
+                    className="h-24 w-24 border-2 border-slate-900 object-cover"
+                  />
+                  <div>
+                    <p className="text-3xl font-black">{leastDatable.name}</p>
+                    <p className="text-lg font-bold text-fuchsia-700">Score: {overallCounts.get(leastDatable.id) ?? 0}</p>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <p className="mt-4 text-base font-bold text-slate-700">No votes yet.</p>
+            )}
+          </section>
+        </div>
+      </div>
+    ) : null;
 
   return (
     <main className="retro-bg min-h-screen p-6 text-slate-900 md:p-10">
@@ -116,7 +182,7 @@ export default function TvPage() {
           <p className="text-xs text-slate-700">Scan to open player voting screen.</p>
         </div>
       </aside>
-      {!snapshot?.currentRound ? (
+      {!snapshot?.currentRound && !finalResultsVisible ? (
         <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
           <div>
             <p className="text-2xl font-black uppercase tracking-widest text-slate-800">
@@ -127,7 +193,9 @@ export default function TvPage() {
             </h1>
           </div>
         </div>
-      ) : showingScoreboard ? (
+      ) : finalResultsVisible && !snapshot?.currentRound ? (
+        finalResultsBlock
+      ) : showingScoreboard && snapshot?.currentRound && !finalResultsVisible ? (
         <div className="space-y-6">
           <div className="retro-panel bg-[#f2b5da] p-6">
             <h1 className="retro-title text-3xl font-black text-black md:text-5xl">
@@ -143,7 +211,7 @@ export default function TvPage() {
             <section className="retro-panel bg-white/90 p-5">
               <h2 className="text-2xl font-black uppercase tracking-wider text-slate-900">This Question</h2>
               <div className="mt-4 space-y-3">
-                {rankedThisRound.map((option) => {
+                {roundTopThree.map((option) => {
                   const voters = voterNamesByOption.get(option.id) ?? [];
                   return (
                     <div
@@ -172,12 +240,44 @@ export default function TvPage() {
                   );
                 })}
               </div>
+              {roundCompact.length > 0 ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {roundCompact.map((option) => {
+                    const voters = voterNamesByOption.get(option.id) ?? [];
+                    return (
+                      <div
+                        key={option.id}
+                        className="flex items-center justify-between gap-3 border-2 border-slate-900 bg-[#baf0f7] px-3 py-2"
+                      >
+                        <div className="flex min-w-0 items-center gap-2">
+                          <img
+                            src={option.image_url}
+                            alt={option.name}
+                            className="h-10 w-10 shrink-0 border-2 border-slate-900 object-cover"
+                          />
+                          <div className="min-w-0">
+                            <p className="truncate text-lg font-black">{option.name}</p>
+                            {voters.length > 0 ? (
+                              <p className="truncate text-xs font-bold text-slate-700">
+                                {voters.join(" · ")}
+                              </p>
+                            ) : null}
+                          </div>
+                        </div>
+                        <span className="shrink-0 text-2xl font-black text-fuchsia-700">
+                          {roundCounts.get(option.id) ?? 0}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : null}
             </section>
 
             <section className="retro-panel bg-white/90 p-5">
               <h2 className="text-2xl font-black uppercase tracking-wider text-slate-900">Overall Leaderboard</h2>
               <div className="mt-4 space-y-3">
-                {rankedOverall.map((option) => (
+                {overallTopThree.map((option) => (
                   <div key={option.id} className="flex items-center justify-between border-2 border-slate-900 bg-[#ffe55a] p-3">
                     <div className="flex items-center gap-3">
                       <img src={option.image_url} alt={option.name} className="h-14 w-14 border-2 border-slate-900 object-cover" />
@@ -187,8 +287,32 @@ export default function TvPage() {
                   </div>
                 ))}
               </div>
+              {overallCompact.length > 0 ? (
+                <div className="mt-4 grid gap-3 sm:grid-cols-2">
+                  {overallCompact.map((option) => (
+                    <div
+                      key={option.id}
+                      className="flex items-center justify-between gap-3 border-2 border-slate-900 bg-[#fff4b2] px-3 py-2"
+                    >
+                      <div className="flex min-w-0 items-center gap-2">
+                        <img
+                          src={option.image_url}
+                          alt={option.name}
+                          className="h-10 w-10 shrink-0 border-2 border-slate-900 object-cover"
+                        />
+                        <span className="truncate text-lg font-black">{option.name}</span>
+                      </div>
+                      <span className="shrink-0 text-2xl font-black text-indigo-700">
+                        {overallCounts.get(option.id) ?? 0}
+                      </span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
             </section>
           </div>
+
+          {finalResultsBlock}
         </div>
       ) : (
         <div className="retro-panel flex min-h-[78vh] items-center justify-center bg-[#f2b5da] p-10 text-center">
@@ -197,7 +321,7 @@ export default function TvPage() {
               Now Voting
             </p>
             <h1 className="retro-title mt-4 text-5xl font-black leading-tight text-black md:text-8xl">
-              {snapshot.currentRound.question}
+              {snapshot?.currentRound?.question ?? ""}
             </h1>
             <p className="mt-8 text-xl font-black text-slate-800 md:text-3xl">
               Cast your vote on your phone
