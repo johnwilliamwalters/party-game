@@ -1,8 +1,8 @@
 "use client";
-/* eslint-disable @next/next/no-img-element */
 
 import { useCallback, useEffect, useMemo, useState } from "react";
 
+import { PortraitFace, nameTwoLinesClassName } from "@/components/portrait-face";
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
 import { isFinalResultsVisible } from "@/lib/game-end";
@@ -201,10 +201,9 @@ export default function PlayPage() {
     <main className="retro-bg min-h-screen p-4">
       <div className="mx-auto max-w-md">
         <div className="retro-panel bg-white p-4">
-          <p className="text-xs font-black uppercase tracking-widest text-slate-500">
-            Player: {player.name}
-          </p>
-          <h1 className="mt-1 font-display text-3xl font-black text-slate-900">
+          <p className="text-xs font-black uppercase tracking-widest text-slate-500">Player</p>
+          <p className={`mt-0.5 text-base font-black text-slate-900 ${nameTwoLinesClassName}`}>{player.name}</p>
+          <h1 className="mt-2 line-clamp-4 break-words font-display text-3xl font-black leading-tight text-slate-900">
             {snapshot?.currentRound?.question ?? "Waiting for next question..."}
           </h1>
         </div>
@@ -220,12 +219,14 @@ export default function PlayPage() {
             <p className="font-display text-3xl font-black">Your Dream Date</p>
             {dreamDate ? (
               <div className="mt-4 border-2 border-slate-900 bg-white p-4">
-                <img
-                  src={dreamDate.option.image_url}
-                  alt={dreamDate.option.name}
-                  className="mx-auto h-36 w-36 border-2 border-slate-900 object-cover"
-                />
-                <p className="mt-3 text-3xl font-black">{dreamDate.option.name}</p>
+                <div className="mx-auto max-w-[14rem]">
+                  <PortraitFace
+                    src={dreamDate.option.image_url}
+                    alt={dreamDate.option.name}
+                    widthClassName="w-full"
+                  />
+                </div>
+                <p className={`mt-3 text-3xl font-black ${nameTwoLinesClassName}`}>{dreamDate.option.name}</p>
                 <p className="text-base font-bold text-indigo-700">
                   Your score for them: {dreamDate.score}
                 </p>
@@ -251,14 +252,17 @@ export default function PlayPage() {
                 type="button"
                 onClick={() => vote(option.id)}
                 disabled={voting}
-                className="retro-panel overflow-hidden bg-[#ffe55a] transition active:scale-95 disabled:opacity-50"
+                className="retro-panel flex flex-col overflow-hidden bg-[#ffe55a] transition active:scale-95 disabled:opacity-50"
               >
-                <img
+                <PortraitFace
                   src={option.image_url}
                   alt={option.name}
-                  className="h-32 w-full border-b-2 border-slate-900 object-cover"
+                  widthClassName="w-full"
+                  className="border-b-0"
                 />
-                <div className="p-3 text-center text-xl font-black uppercase tracking-wide text-slate-900">
+                <div
+                  className={`border-t-2 border-slate-900 p-3 text-center text-xl font-black uppercase tracking-wide text-slate-900 ${nameTwoLinesClassName}`}
+                >
                   {option.name}
                 </div>
               </button>

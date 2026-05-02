@@ -6,6 +6,7 @@ import QRCode from "qrcode";
 
 import { useGameRealtime } from "@/hooks/use-game-realtime";
 import { fetchGameSnapshot } from "@/lib/game-api";
+import { PortraitFace, nameTwoLinesClassName } from "@/components/portrait-face";
 import { isFinalResultsVisible } from "@/lib/game-end";
 import type { GameSnapshot } from "@/types/game";
 
@@ -133,13 +134,9 @@ export default function TvPage() {
             {mostDatable ? (
               <div className="mt-4 border-2 border-slate-900 bg-white p-4">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={mostDatable.image_url}
-                    alt={mostDatable.name}
-                    className="h-24 w-24 border-2 border-slate-900 object-cover"
-                  />
-                  <div>
-                    <p className="text-3xl font-black">{mostDatable.name}</p>
+                  <PortraitFace src={mostDatable.image_url} alt={mostDatable.name} widthClassName="w-28 md:w-32" />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-3xl font-black ${nameTwoLinesClassName}`}>{mostDatable.name}</p>
                     <p className="text-lg font-bold text-indigo-700">Score: {overallCounts.get(mostDatable.id) ?? 0}</p>
                   </div>
                 </div>
@@ -154,13 +151,9 @@ export default function TvPage() {
             {leastDatable ? (
               <div className="mt-4 border-2 border-slate-900 bg-white p-4">
                 <div className="flex items-center gap-4">
-                  <img
-                    src={leastDatable.image_url}
-                    alt={leastDatable.name}
-                    className="h-24 w-24 border-2 border-slate-900 object-cover"
-                  />
-                  <div>
-                    <p className="text-3xl font-black">{leastDatable.name}</p>
+                  <PortraitFace src={leastDatable.image_url} alt={leastDatable.name} widthClassName="w-28 md:w-32" />
+                  <div className="min-w-0 flex-1">
+                    <p className={`text-3xl font-black ${nameTwoLinesClassName}`}>{leastDatable.name}</p>
                     <p className="text-lg font-bold text-fuchsia-700">Score: {overallCounts.get(leastDatable.id) ?? 0}</p>
                   </div>
                 </div>
@@ -226,15 +219,11 @@ export default function TvPage() {
                       className="flex items-start justify-between gap-3 border-2 border-slate-900 bg-[#8be6f2] p-3"
                     >
                       <div className="flex min-w-0 flex-1 items-start gap-3">
-                        <img
-                          src={option.image_url}
-                          alt={option.name}
-                          className="h-14 w-14 shrink-0 border-2 border-slate-900 object-cover"
-                        />
+                        <PortraitFace src={option.image_url} alt={option.name} widthClassName="w-14" />
                         <div className="min-w-0">
-                          <span className="text-2xl font-black">{option.name}</span>
+                          <span className={`text-2xl font-black ${nameTwoLinesClassName}`}>{option.name}</span>
                           {voters.length > 0 ? (
-                            <p className="mt-1 text-base font-bold leading-snug text-slate-800">
+                            <p className={`mt-1 text-base font-bold text-slate-800 ${nameTwoLinesClassName}`}>
                               {voters.join(" · ")}
                             </p>
                           ) : null}
@@ -257,15 +246,11 @@ export default function TvPage() {
                         className="flex items-center justify-between gap-3 border-2 border-slate-900 bg-[#baf0f7] px-3 py-2"
                       >
                         <div className="flex min-w-0 items-center gap-2">
-                          <img
-                            src={option.image_url}
-                            alt={option.name}
-                            className="h-10 w-10 shrink-0 border-2 border-slate-900 object-cover"
-                          />
+                          <PortraitFace src={option.image_url} alt={option.name} widthClassName="w-11" />
                           <div className="min-w-0">
-                            <p className="truncate text-lg font-black">{option.name}</p>
+                            <p className={`text-lg font-black ${nameTwoLinesClassName}`}>{option.name}</p>
                             {voters.length > 0 ? (
-                              <p className="truncate text-xs font-bold text-slate-700">
+                              <p className={`text-xs font-bold text-slate-700 ${nameTwoLinesClassName}`}>
                                 {voters.join(" · ")}
                               </p>
                             ) : null}
@@ -286,9 +271,9 @@ export default function TvPage() {
               <div className="mt-4 space-y-3">
                 {overallTopThree.map((option) => (
                   <div key={option.id} className="flex items-center justify-between border-2 border-slate-900 bg-[#ffe55a] p-3">
-                    <div className="flex items-center gap-3">
-                      <img src={option.image_url} alt={option.name} className="h-14 w-14 border-2 border-slate-900 object-cover" />
-                      <span className="text-2xl font-black">{option.name}</span>
+                    <div className="flex min-w-0 flex-1 items-center gap-3">
+                      <PortraitFace src={option.image_url} alt={option.name} widthClassName="w-14" />
+                      <span className={`min-w-0 text-2xl font-black ${nameTwoLinesClassName}`}>{option.name}</span>
                     </div>
                     <span className="text-3xl font-black text-indigo-700">{overallCounts.get(option.id) ?? 0}</span>
                   </div>
@@ -302,12 +287,8 @@ export default function TvPage() {
                       className="flex items-center justify-between gap-3 border-2 border-slate-900 bg-[#fff4b2] px-3 py-2"
                     >
                       <div className="flex min-w-0 items-center gap-2">
-                        <img
-                          src={option.image_url}
-                          alt={option.name}
-                          className="h-10 w-10 shrink-0 border-2 border-slate-900 object-cover"
-                        />
-                        <span className="truncate text-lg font-black">{option.name}</span>
+                        <PortraitFace src={option.image_url} alt={option.name} widthClassName="w-11" />
+                        <span className={`min-w-0 text-lg font-black ${nameTwoLinesClassName}`}>{option.name}</span>
                       </div>
                       <span className="shrink-0 text-2xl font-black text-indigo-700">
                         {overallCounts.get(option.id) ?? 0}
@@ -344,10 +325,10 @@ export default function TvPage() {
           </p>
           <div className="flex min-w-0 flex-1 gap-2 overflow-x-auto pb-1">
             {connectedPlayerNames.length > 0 ? (
-              connectedPlayerNames.map((name) => (
+              connectedPlayerNames.map((name, index) => (
                 <span
-                  key={name}
-                  className="shrink-0 rounded-full border-2 border-slate-900 bg-white px-3 py-1 text-sm font-black text-slate-900"
+                  key={`${name}-${index}`}
+                  className={`max-w-[10rem] shrink-0 rounded-xl border-2 border-slate-900 bg-white px-2 py-1.5 text-center text-sm font-black leading-snug text-slate-900 ${nameTwoLinesClassName}`}
                 >
                   {name}
                 </span>
